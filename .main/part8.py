@@ -5,7 +5,7 @@ class window_update(QWidget):  # 增加更新页面（Check for Updates）
 
     def initUI(self):  # 说明页面内信息
 
-        lbl = QLabel('Current Version: 0.0.7', self)
+        lbl = QLabel('Current Version: 0.0.8', self)
         lbl.move(110, 75)
 
         lbl0 = QLabel('Check Now:', self)

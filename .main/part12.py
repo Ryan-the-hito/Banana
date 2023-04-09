@@ -1008,287 +1008,288 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
         TEMP = int(codecs.open('temperature.txt', 'r', encoding='utf-8').read())
         MAXT = int(codecs.open('maxtokens.txt', 'r', encoding='utf-8').read())
 
-        df = pd.read_csv(self.fullall2)
-        chatwith = codecs.open("chatwith.txt", 'r', encoding='utf-8').read()
-        if chatwith != 'Context: All':
-            chatpath1 = os.path.join(self.fullIndex, chatwith)
-            df = pd.read_csv(chatpath1)
-        df = df.set_index(["title", "heading"])
-        #print(f"{len(df)} rows in the data.")
-        df.sample(5)
+        if self.text1.toPlainText() != '':
+            df = pd.read_csv(self.fullall2)
+            chatwith = codecs.open("chatwith.txt", 'r', encoding='utf-8').read()
+            if chatwith != 'Context: All':
+                chatpath1 = os.path.join(self.fullIndex, chatwith)
+                df = pd.read_csv(chatpath1)
+            df = df.set_index(["title", "heading"])
+            #print(f"{len(df)} rows in the data.")
+            df.sample(5)
 
-        def get_embedding(text: str, model: str = EMBEDDING_MODEL) -> list[float]:
-            result = openai.Embedding.create(
-                model=model,
-                input=text
-            )
-            time.sleep(0.5)
-            return result["data"][0]["embedding"]
+            def get_embedding(text: str, model: str = EMBEDDING_MODEL) -> list[float]:
+                result = openai.Embedding.create(
+                    model=model,
+                    input=text
+                )
+                time.sleep(0.5)
+                return result["data"][0]["embedding"]
 
-        def load_embeddings(fname: str) -> dict[tuple[str, str], list[float]]:
-            df = pd.read_csv(fname, header=0)
-            max_dim = max([int(c) for c in df.columns if c != "title" and c != "heading"])
-            return {
-                (r.title, r.heading): [r[str(i)] for i in range(max_dim + 1)] for _, r in df.iterrows()
-            }
+            def load_embeddings(fname: str) -> dict[tuple[str, str], list[float]]:
+                df = pd.read_csv(fname, header=0)
+                max_dim = max([int(c) for c in df.columns if c != "title" and c != "heading"])
+                return {
+                    (r.title, r.heading): [r[str(i)] for i in range(max_dim + 1)] for _, r in df.iterrows()
+                }
 
-        document_embeddings = load_embeddings(self.fullall1)
-        if chatwith != 'Context: All':
-            chatpath2 = os.path.join(self.fullEmbed, chatwith)
-            document_embeddings = load_embeddings(chatpath2)
+            document_embeddings = load_embeddings(self.fullall1)
+            if chatwith != 'Context: All':
+                chatpath2 = os.path.join(self.fullEmbed, chatwith)
+                document_embeddings = load_embeddings(chatpath2)
 
-        def vector_similarity(x: list[float], y: list[float]) -> float:
-            return np.dot(np.array(x), np.array(y))
+            def vector_similarity(x: list[float], y: list[float]) -> float:
+                return np.dot(np.array(x), np.array(y))
 
-        def order_document_sections_by_query_similarity(query: str, contexts: dict[(str, str), np.array]) -> list[
-            (float, (str, str))]:
-            query_embedding = get_embedding(query)
+            def order_document_sections_by_query_similarity(query: str, contexts: dict[(str, str), np.array]) -> list[
+                (float, (str, str))]:
+                query_embedding = get_embedding(query)
 
-            document_similarities = sorted([
-                (vector_similarity(query_embedding, doc_embedding), doc_index) for doc_index, doc_embedding in
-                contexts.items()
-            ], reverse=True)
+                document_similarities = sorted([
+                    (vector_similarity(query_embedding, doc_embedding), doc_index) for doc_index, doc_embedding in
+                    contexts.items()
+                ], reverse=True)
 
-            return document_similarities
+                return document_similarities
 
-        MAX_SECTION_LEN = 1024
-        SEPARATOR = "\n* "
+            MAX_SECTION_LEN = 1024
+            SEPARATOR = "\n* "
 
-        tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-        separator_len = len(tokenizer.encode(SEPARATOR))
+            tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+            separator_len = len(tokenizer.encode(SEPARATOR))
 
-        def construct_prompt(question: str, context_embeddings: dict, df: pd.DataFrame) -> str:
-            most_relevant_document_sections = order_document_sections_by_query_similarity(question, context_embeddings)
+            def construct_prompt(question: str, context_embeddings: dict, df: pd.DataFrame) -> str:
+                most_relevant_document_sections = order_document_sections_by_query_similarity(question, context_embeddings)
 
-            chosen_sections = []
-            chosen_sections_len = 0
-            chosen_sections_indexes = []
+                chosen_sections = []
+                chosen_sections_len = 0
+                chosen_sections_indexes = []
 
-            for _, section_index in most_relevant_document_sections:
-                # Add contexts until we run out of space.
-                document_section = df.loc[section_index]
+                for _, section_index in most_relevant_document_sections:
+                    # Add contexts until we run out of space.
+                    document_section = df.loc[section_index]
 
-                chosen_sections_len += document_section.tokens + separator_len
-                if (chosen_sections_len > MAX_SECTION_LEN).any():
-                    break
+                    chosen_sections_len += document_section.tokens + separator_len
+                    if (chosen_sections_len > MAX_SECTION_LEN).any():
+                        break
 
-                chosen_sections.append(SEPARATOR + document_section.content.replace("\n", " "))
-                chosen_sections_indexes.append(str(section_index))
+                    chosen_sections.append(SEPARATOR + document_section.content.replace("\n", " "))
+                    chosen_sections_indexes.append(str(section_index))
 
-            header = """Answer the question as truthfully as possible using the provided context, and if the answer is not contained within the text below, say "I don't know."\n\nContext:\n"""
+                header = """Answer the question as truthfully as possible using the provided context, and if the answer is not contained within the text below, say "I don't know."\n\nContext:\n"""
 
-            return header + "".join(str(chosen_sections)) + "\n\n Q: " + question + "\n A:"
+                return header + "".join(str(chosen_sections)) + "\n\n Q: " + question + "\n A:"
 
-        def answer_query_with_context(
-                query: str,
-                df: pd.DataFrame,
-                document_embeddings: dict[(str, str), np.array],
-                show_prompt: bool = False
-        ) -> str:
-            prompt = construct_prompt(
-                query,
-                document_embeddings,
-                df
-            )
+            def answer_query_with_context(
+                    query: str,
+                    df: pd.DataFrame,
+                    document_embeddings: dict[(str, str), np.array],
+                    show_prompt: bool = False
+            ) -> str:
+                prompt = construct_prompt(
+                    query,
+                    document_embeddings,
+                    df
+                )
 
-            if show_prompt:
-                print(prompt)
+                if show_prompt:
+                    print(prompt)
 
-            response = openai.ChatCompletion.create(
-                model=COMPLETIONS_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=TEMP,
-                max_tokens=MAXT,
-            )
+                response = openai.ChatCompletion.create(
+                    model=COMPLETIONS_MODEL,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=TEMP,
+                    max_tokens=MAXT,
+                )
 
-            return response.choices[0].message["content"].strip('\n')
+                return response.choices[0].message["content"].strip('\n')
 
-        self.LastQ = str(self.text1.toPlainText())
-        if AccountGPT != '' and self.text1.toPlainText() != '':
-            QApplication.processEvents()
-            QApplication.restoreOverrideCursor()
-            self.text1.setReadOnly(True)
-            md = '- Q: ' + self.text1.toPlainText() + '\n\n'
-            with open('output.txt', 'a', encoding='utf-8') as f1:
-                f1.write(md)
-            PromText = codecs.open('output.txt', 'r', encoding='utf-8').read()
-            newhtml = self.md2html(PromText)
-            self.real1.setHtml(newhtml)
-            self.real1.ensureCursorVisible()  # 游标可用
-            cursor = self.real1.textCursor()  # 设置游标
-            pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
-            cursor.setPosition(pos)  # 游标位置设置为尾部
-            self.real1.setTextCursor(cursor)  # 滚动到游标位置
-            signal.signal(signal.SIGALRM, self.timeout_handler)
-            signal.alarm(60)
-            Which = codecs.open('which.txt', 'r', encoding='utf-8').read()
-            if Which == '0':
-                try:
-                    query = self.text1.toPlainText()
-                    message = answer_query_with_context(query, df, document_embeddings)
-                    message = message.lstrip('\n')
-                    message = message.replace('\n', '\n\n\t')
-                    message = message.replace('\n\n\t\n\n\t', '\n\n\t')
-                    message = '\n\t' + message
-                    EndMess = '- A: ' + message + '\n\n---\n\n'
-                    with open('output.txt', 'a', encoding='utf-8') as f1:
-                        f1.write(EndMess)
-                    AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
-                    endhtml = self.md2html(AllText)
-                    self.real1.setHtml(endhtml)
-                    self.real1.ensureCursorVisible()  # 游标可用
-                    cursor = self.real1.textCursor()  # 设置游标
-                    pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
-                    cursor.setPosition(pos)  # 游标位置设置为尾部
-                    self.real1.setTextCursor(cursor)  # 滚动到游标位置
-                    QApplication.processEvents()
-                    QApplication.restoreOverrideCursor()
-
-                    self.text1.clear()
-                except TimeoutException:
-                    with open('output.txt', 'a', encoding='utf-8') as f1:
-                        f1.write('- A: Timed out, please try again!' + '\n\n---\n\n')
-                    AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
-                    endhtml = self.md2html(AllText)
-                    self.real1.setHtml(endhtml)
-                    self.real1.ensureCursorVisible()  # 游标可用
-                    cursor = self.real1.textCursor()  # 设置游标
-                    pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
-                    cursor.setPosition(pos)  # 游标位置设置为尾部
-                    self.real1.setTextCursor(cursor)  # 滚动到游标位置
-                    self.text1.setPlainText(self.LastQ)
-                except Exception as e:
-                    with open('output.txt', 'a', encoding='utf-8') as f1:
-                        f1.write('- A: Error, please try again!' + str(e) + '\n\n---\n\n')
-                    AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
-                    endhtml = self.md2html(AllText)
-                    self.real1.setHtml(endhtml)
-                    self.real1.ensureCursorVisible()  # 游标可用
-                    cursor = self.real1.textCursor()  # 设置游标
-                    pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
-                    cursor.setPosition(pos)  # 游标位置设置为尾部
-                    self.real1.setTextCursor(cursor)  # 滚动到游标位置
-                    self.text1.setPlainText(self.LastQ)
-            if Which == '1':
-                ENDPOINT = 'https://api.openai.com/v1/chat/completions'
-                HEADERS = {"Authorization": f"Bearer {AccountGPT}"}
-                async def answer_query(
-                        query: str,
-                        df: pd.DataFrame,
-                        document_embeddings: dict[(str, str), np.array],
-                        show_prompt: bool = False
-                ) -> str:
-                    prompt = construct_prompt(
-                        query,
-                        document_embeddings,
-                        df
-                    )
-
-                    if show_prompt:
-                        print(prompt)
-
-                    ori_history = [{"role": "user", "content": "Hey."},
-                                   {"role": "assistant", "content": "Hello! I'm happy to help you."}]
-                    conversation_history = ori_history
+            self.LastQ = str(self.text1.toPlainText())
+            if AccountGPT != '':
+                QApplication.processEvents()
+                QApplication.restoreOverrideCursor()
+                self.text1.setReadOnly(True)
+                md = '- Q: ' + self.text1.toPlainText() + '\n\n'
+                with open('output.txt', 'a', encoding='utf-8') as f1:
+                    f1.write(md)
+                PromText = codecs.open('output.txt', 'r', encoding='utf-8').read()
+                newhtml = self.md2html(PromText)
+                self.real1.setHtml(newhtml)
+                self.real1.ensureCursorVisible()  # 游标可用
+                cursor = self.real1.textCursor()  # 设置游标
+                pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
+                cursor.setPosition(pos)  # 游标位置设置为尾部
+                self.real1.setTextCursor(cursor)  # 滚动到游标位置
+                signal.signal(signal.SIGALRM, self.timeout_handler)
+                signal.alarm(60)
+                Which = codecs.open('which.txt', 'r', encoding='utf-8').read()
+                if Which == '0':
                     try:
-                        response = await chat_gpt(prompt, conversation_history)
-                        message = response.lstrip('assistant:').strip()
-                        return message
+                        query = self.text1.toPlainText()
+                        message = answer_query_with_context(query, df, document_embeddings)
+                        message = message.lstrip('\n')
+                        message = message.replace('\n', '\n\n\t')
+                        message = message.replace('\n\n\t\n\n\t', '\n\n\t')
+                        message = '\n\t' + message
+                        EndMess = '- A: ' + message + '\n\n---\n\n'
+                        with open('output.txt', 'a', encoding='utf-8') as f1:
+                            f1.write(EndMess)
+                        AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
+                        endhtml = self.md2html(AllText)
+                        self.real1.setHtml(endhtml)
+                        self.real1.ensureCursorVisible()  # 游标可用
+                        cursor = self.real1.textCursor()  # 设置游标
+                        pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
+                        cursor.setPosition(pos)  # 游标位置设置为尾部
+                        self.real1.setTextCursor(cursor)  # 滚动到游标位置
+                        QApplication.processEvents()
+                        QApplication.restoreOverrideCursor()
+
+                        self.text1.clear()
+                    except TimeoutException:
+                        with open('output.txt', 'a', encoding='utf-8') as f1:
+                            f1.write('- A: Timed out, please try again!' + '\n\n---\n\n')
+                        AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
+                        endhtml = self.md2html(AllText)
+                        self.real1.setHtml(endhtml)
+                        self.real1.ensureCursorVisible()  # 游标可用
+                        cursor = self.real1.textCursor()  # 设置游标
+                        pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
+                        cursor.setPosition(pos)  # 游标位置设置为尾部
+                        self.real1.setTextCursor(cursor)  # 滚动到游标位置
+                        self.text1.setPlainText(self.LastQ)
                     except Exception as e:
-                        pass
+                        with open('output.txt', 'a', encoding='utf-8') as f1:
+                            f1.write('- A: Error, please try again!' + str(e) + '\n\n---\n\n')
+                        AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
+                        endhtml = self.md2html(AllText)
+                        self.real1.setHtml(endhtml)
+                        self.real1.ensureCursorVisible()  # 游标可用
+                        cursor = self.real1.textCursor()  # 设置游标
+                        pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
+                        cursor.setPosition(pos)  # 游标位置设置为尾部
+                        self.real1.setTextCursor(cursor)  # 滚动到游标位置
+                        self.text1.setPlainText(self.LastQ)
+                if Which == '1':
+                    ENDPOINT = 'https://api.openai.com/v1/chat/completions'
+                    HEADERS = {"Authorization": f"Bearer {AccountGPT}"}
+                    async def answer_query(
+                            query: str,
+                            df: pd.DataFrame,
+                            document_embeddings: dict[(str, str), np.array],
+                            show_prompt: bool = False
+                    ) -> str:
+                        prompt = construct_prompt(
+                            query,
+                            document_embeddings,
+                            df
+                        )
 
-                async def chat_gpt(message, conversation_history=None, tokens_limit=4096):
-                    if conversation_history is None:
-                        conversation_history = []
+                        if show_prompt:
+                            print(prompt)
 
-                    conversation_history.append({"role": "user", "content": message})
+                        ori_history = [{"role": "user", "content": "Hey."},
+                                       {"role": "assistant", "content": "Hello! I'm happy to help you."}]
+                        conversation_history = ori_history
+                        try:
+                            response = await chat_gpt(prompt, conversation_history)
+                            message = response.lstrip('assistant:').strip()
+                            return message
+                        except Exception as e:
+                            pass
 
-                    input_text = "".join([f"{msg['role']}:{msg['content']}\n" for msg in conversation_history])
+                    async def chat_gpt(message, conversation_history=None, tokens_limit=4096):
+                        if conversation_history is None:
+                            conversation_history = []
 
-                    # Truncate or shorten the input text if it exceeds the token limit
-                    encoded_input_text = input_text.encode("utf-8")
-                    while len(encoded_input_text) > tokens_limit:
-                        conversation_history.pop(0)
+                        conversation_history.append({"role": "user", "content": message})
+
                         input_text = "".join([f"{msg['role']}:{msg['content']}\n" for msg in conversation_history])
+
+                        # Truncate or shorten the input text if it exceeds the token limit
                         encoded_input_text = input_text.encode("utf-8")
+                        while len(encoded_input_text) > tokens_limit:
+                            conversation_history.pop(0)
+                            input_text = "".join([f"{msg['role']}:{msg['content']}\n" for msg in conversation_history])
+                            encoded_input_text = input_text.encode("utf-8")
 
-                    # Set up the API call data
-                    data = {
-                        "model": "gpt-3.5-turbo",
-                        "messages": [{"role": "user", "content": input_text}],
-                        "max_tokens": MAXT,
-                        "temperature": TEMP,
-                        "n": 1,
-                        "stop": None,
-                    }
+                        # Set up the API call data
+                        data = {
+                            "model": "gpt-3.5-turbo",
+                            "messages": [{"role": "user", "content": input_text}],
+                            "max_tokens": MAXT,
+                            "temperature": TEMP,
+                            "n": 1,
+                            "stop": None,
+                        }
 
-                    # Make the API call asynchronously
-                    async with httpx.AsyncClient() as client:
-                        response = await client.post(ENDPOINT, json=data, headers=HEADERS, timeout=60.0)
+                        # Make the API call asynchronously
+                        async with httpx.AsyncClient() as client:
+                            response = await client.post(ENDPOINT, json=data, headers=HEADERS, timeout=60.0)
 
-                    # Process the API response
-                    if response.status_code == 200:
-                        response_data = response.json()
-                        chat_output = response_data["choices"][0]["message"]["content"].strip()
-                        return chat_output
-                    else:
-                        raise Exception(f"API call failed with status code {response.status_code}: {response.text}")
-                try:
-                    query = self.text1.toPlainText()
-                    message = asyncio.run(answer_query(query, df, document_embeddings))
-                    message = message.lstrip('\n')
-                    message = message.replace('\n', '\n\n\t')
-                    message = message.replace('\n\n\t\n\n\t', '\n\n\t')
-                    message = '\n\t' + message
-                    EndMess = '- A: ' + message + '\n\n---\n\n'
-                    with open('output.txt', 'a', encoding='utf-8') as f1:
-                        f1.write(EndMess)
-                    AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
-                    endhtml = self.md2html(AllText)
-                    self.real1.setHtml(endhtml)
-                    self.real1.ensureCursorVisible()  # 游标可用
-                    cursor = self.real1.textCursor()  # 设置游标
-                    pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
-                    cursor.setPosition(pos)  # 游标位置设置为尾部
-                    self.real1.setTextCursor(cursor)  # 滚动到游标位置
-                    QApplication.processEvents()
-                    QApplication.restoreOverrideCursor()
+                        # Process the API response
+                        if response.status_code == 200:
+                            response_data = response.json()
+                            chat_output = response_data["choices"][0]["message"]["content"].strip()
+                            return chat_output
+                        else:
+                            raise Exception(f"API call failed with status code {response.status_code}: {response.text}")
+                    try:
+                        query = self.text1.toPlainText()
+                        message = asyncio.run(answer_query(query, df, document_embeddings))
+                        message = message.lstrip('\n')
+                        message = message.replace('\n', '\n\n\t')
+                        message = message.replace('\n\n\t\n\n\t', '\n\n\t')
+                        message = '\n\t' + message
+                        EndMess = '- A: ' + message + '\n\n---\n\n'
+                        with open('output.txt', 'a', encoding='utf-8') as f1:
+                            f1.write(EndMess)
+                        AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
+                        endhtml = self.md2html(AllText)
+                        self.real1.setHtml(endhtml)
+                        self.real1.ensureCursorVisible()  # 游标可用
+                        cursor = self.real1.textCursor()  # 设置游标
+                        pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
+                        cursor.setPosition(pos)  # 游标位置设置为尾部
+                        self.real1.setTextCursor(cursor)  # 滚动到游标位置
+                        QApplication.processEvents()
+                        QApplication.restoreOverrideCursor()
 
-                    self.text1.clear()
-                except TimeoutException:
-                    with open('output.txt', 'a', encoding='utf-8') as f1:
-                        f1.write('- A: Timed out, please try again!' + '\n\n---\n\n')
-                    AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
-                    endhtml = self.md2html(AllText)
-                    self.real1.setHtml(endhtml)
-                    self.real1.ensureCursorVisible()  # 游标可用
-                    cursor = self.real1.textCursor()  # 设置游标
-                    pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
-                    cursor.setPosition(pos)  # 游标位置设置为尾部
-                    self.real1.setTextCursor(cursor)  # 滚动到游标位置
-                    self.text1.setPlainText(self.LastQ)
-                except Exception as e:
-                    with open('output.txt', 'a', encoding='utf-8') as f1:
-                        f1.write('- A: Error, please try again!' + str(e) + '\n\n---\n\n')
-                    AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
-                    endhtml = self.md2html(AllText)
-                    self.real1.setHtml(endhtml)
-                    self.real1.ensureCursorVisible()  # 游标可用
-                    cursor = self.real1.textCursor()  # 设置游标
-                    pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
-                    cursor.setPosition(pos)  # 游标位置设置为尾部
-                    self.real1.setTextCursor(cursor)  # 滚动到游标位置
-                    self.text1.setPlainText(self.LastQ)
-            signal.alarm(0)  # reset timer
-            self.text1.setReadOnly(False)
-        if AccountGPT == '':
-            CMD = '''
-                on run argv
-                  display notification (item 2 of argv) with title (item 1 of argv)
-                end run
-                '''
-            self.notify(CMD, "Banana: Webpage Archiver",
-                        f"Your openai API is empty!\n Please enter your key in Settings!")
+                        self.text1.clear()
+                    except TimeoutException:
+                        with open('output.txt', 'a', encoding='utf-8') as f1:
+                            f1.write('- A: Timed out, please try again!' + '\n\n---\n\n')
+                        AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
+                        endhtml = self.md2html(AllText)
+                        self.real1.setHtml(endhtml)
+                        self.real1.ensureCursorVisible()  # 游标可用
+                        cursor = self.real1.textCursor()  # 设置游标
+                        pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
+                        cursor.setPosition(pos)  # 游标位置设置为尾部
+                        self.real1.setTextCursor(cursor)  # 滚动到游标位置
+                        self.text1.setPlainText(self.LastQ)
+                    except Exception as e:
+                        with open('output.txt', 'a', encoding='utf-8') as f1:
+                            f1.write('- A: Error, please try again!' + str(e) + '\n\n---\n\n')
+                        AllText = codecs.open('output.txt', 'r', encoding='utf-8').read()
+                        endhtml = self.md2html(AllText)
+                        self.real1.setHtml(endhtml)
+                        self.real1.ensureCursorVisible()  # 游标可用
+                        cursor = self.real1.textCursor()  # 设置游标
+                        pos = len(self.real1.toPlainText())  # 获取文本尾部的位置
+                        cursor.setPosition(pos)  # 游标位置设置为尾部
+                        self.real1.setTextCursor(cursor)  # 滚动到游标位置
+                        self.text1.setPlainText(self.LastQ)
+                signal.alarm(0)  # reset timer
+                self.text1.setReadOnly(False)
+            if AccountGPT == '':
+                CMD = '''
+                    on run argv
+                      display notification (item 2 of argv) with title (item 1 of argv)
+                    end run
+                    '''
+                self.notify(CMD, "Banana: Webpage Archiver",
+                            f"Your openai API is empty!\n Please enter your key in Settings!")
 
     def clearall(self):
         self.text1.clear()
@@ -1340,131 +1341,132 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
             self.le3.clear()
 
     def deletefolder(self):
-        todel = self.folder_list.currentItem().text()
-        if todel != 'Deleted' and todel != '':
-            folders = codecs.open(self.fullfolder, 'r', encoding='utf-8').read()
-            tolist = folders.split('\n')
-            if tolist != []:
-                # del foldername
-                while '' in tolist:
-                    tolist.remove('')
-                tolist.remove(todel)
-                outlist = '\n'.join(tolist) + '\n'
-                with open(self.fullfolder, 'w', encoding='utf-8') as f0:
-                    f0.write(outlist)
-                self.folder_list.clear()
-                self.folder_list.addItems(tolist)
-                # move to Deleted
-                tarname7_6 = todel + '.txt'
-                delfolder = os.path.join(self.fulldir1, tarname7_6)
-                deltext = codecs.open(delfolder, 'r', encoding='utf-8').read()
-                with open(self.fulldel, 'a', encoding='utf-8') as f0:
-                    f0.write(deltext + '\n')
-                # del folder
-                os.remove(delfolder)
-        if todel == 'Deleted':
-            allitem = codecs.open(self.fulldel, 'r', encoding='utf-8').read()
-            alllist = allitem.split('\n')
-            while '' in alllist:
-                alllist.remove('')
-            for i in range(len(alllist)):
-                # del records
-                tar1 = alllist[i].split('✡✡')[1] + '.webarchive'
-                del1 = os.path.join(self.fullrecord, tar1)
-                try:
-                    os.remove(del1)
-                except:
-                    pass
-                # del local
-                tar2 = alllist[i].split('✡✡')[1] + '.txt'
-                del2 = os.path.join(self.fulllocal, tar2)
-                try:
-                    os.remove(del2)
-                except:
-                    pass
-                # del index
-                tar3 = alllist[i].split('✡✡')[1] + '.csv'
-                del3 = os.path.join(self.fullIndex, tar3)
-                try:
-                    os.remove(del3)
-                except:
-                    pass
-                # del embed
-                tar4 = alllist[i].split('✡✡')[1] + '.csv'
-                del4 = os.path.join(self.fullEmbed, tar4)
-                try:
-                    os.remove(del4)
-                except:
-                    pass
-                # del midindex
-                tar5 = alllist[i].split('✡✡')[1] + '.csv'
-                del5 = os.path.join(self.fullMidindex, tar5)
-                try:
-                    os.remove(del5)
-                except:
-                    pass
-                # del midembed
-                tar6 = alllist[i].split('✡✡')[1] + '.csv'
-                del6 = os.path.join(self.fullMidembed, tar6)
-                try:
-                    os.remove(del6)
-                except:
-                    pass
-                # del in allsearch.txt
-                searit = codecs.open(self.fullse, 'r', encoding='utf-8').read()
-                searit_list = searit.split('\n')
-                while '' in searit_list:
-                    searit_list.remove('')
-                if searit_list != []:
-                    emptylist = []
-                    for m in range(len(searit_list)):
-                        if alllist[i] in searit_list[m]:
-                            emptylist.append(searit_list[m])
-                    putlist = list(set(searit_list) - set(emptylist))
-                    putstr = '\n'.join(putlist) + '\n'
-                    with open(self.fullse, 'w', encoding='utf-8') as f0:
-                        f0.write(putstr)
-            # redo allindex
-            list_dir = os.listdir(self.fullIndex)
-            while '.DS_Store' in list_dir:
-                list_dir.remove('.DS_Store')
-            with open(self.fullall2, 'w', encoding='utf-8') as f0:
-                f0.write('title,heading,content,tokens\n')
-            if list_dir != []:
-                for i in range(len(list_dir)):
-                    tarnamecsv = os.path.join(self.fullIndex, list_dir[i])
-                    midembedtext = codecs.open(tarnamecsv, 'r', encoding='utf-8').read()
-                    midembedtext = midembedtext.replace('title,heading,content,tokens', '')
-                    midembedtext_list = midembedtext.split('\n')
-                    while '' in midembedtext_list:
-                        midembedtext_list.remove('')
-                    midembedtext = '\n'.join(midembedtext_list)
-                    with open(self.fullall2, 'a', encoding='utf-8') as f0:
-                        f0.write(midembedtext + '\n')
-            # redo allembed
-            list_dir = os.listdir(self.fullEmbed)
-            while '.DS_Store' in list_dir:
-                list_dir.remove('.DS_Store')
-            parta = ''
-            for d in range(0, 1536):
-                parta = parta + str(d) + ','
-            parta = parta.rstrip(',')
-            with open(self.fullall1, 'w', encoding='utf-8') as f0:
-                f0.write('title,heading,' + parta + '\n')
-            if list_dir != []:
-                for i in range(len(list_dir)):
-                    tarnamecsv = os.path.join(self.fullEmbed, list_dir[i])
-                    midembedtext = codecs.open(tarnamecsv, 'r', encoding='utf-8').read()
-                    midembedtext_list = midembedtext.split('\n')
-                    while '' in midembedtext_list:
-                        midembedtext_list.remove('')
-                    del midembedtext_list[0]
-                    midembedtext = '\n'.join(midembedtext_list)
-                    with open(self.fullall1, 'a', encoding='utf-8') as f0:
-                        f0.write(midembedtext + '\n')
-            # clear deleted.txt item
-            with open(self.fulldel, 'w', encoding='utf-8') as f0:
-                f0.write('')
+        if self.folder_list.currentItem() != None:
+            todel = self.folder_list.currentItem().text()
+            if todel != 'Deleted' and todel != '':
+                folders = codecs.open(self.fullfolder, 'r', encoding='utf-8').read()
+                tolist = folders.split('\n')
+                if tolist != []:
+                    # del foldername
+                    while '' in tolist:
+                        tolist.remove('')
+                    tolist.remove(todel)
+                    outlist = '\n'.join(tolist) + '\n'
+                    with open(self.fullfolder, 'w', encoding='utf-8') as f0:
+                        f0.write(outlist)
+                    self.folder_list.clear()
+                    self.folder_list.addItems(tolist)
+                    # move to Deleted
+                    tarname7_6 = todel + '.txt'
+                    delfolder = os.path.join(self.fulldir1, tarname7_6)
+                    deltext = codecs.open(delfolder, 'r', encoding='utf-8').read()
+                    with open(self.fulldel, 'a', encoding='utf-8') as f0:
+                        f0.write(deltext + '\n')
+                    # del folder
+                    os.remove(delfolder)
+            if todel == 'Deleted':
+                allitem = codecs.open(self.fulldel, 'r', encoding='utf-8').read()
+                alllist = allitem.split('\n')
+                while '' in alllist:
+                    alllist.remove('')
+                for i in range(len(alllist)):
+                    # del records
+                    tar1 = alllist[i].split('✡✡')[1] + '.webarchive'
+                    del1 = os.path.join(self.fullrecord, tar1)
+                    try:
+                        os.remove(del1)
+                    except:
+                        pass
+                    # del local
+                    tar2 = alllist[i].split('✡✡')[1] + '.txt'
+                    del2 = os.path.join(self.fulllocal, tar2)
+                    try:
+                        os.remove(del2)
+                    except:
+                        pass
+                    # del index
+                    tar3 = alllist[i].split('✡✡')[1] + '.csv'
+                    del3 = os.path.join(self.fullIndex, tar3)
+                    try:
+                        os.remove(del3)
+                    except:
+                        pass
+                    # del embed
+                    tar4 = alllist[i].split('✡✡')[1] + '.csv'
+                    del4 = os.path.join(self.fullEmbed, tar4)
+                    try:
+                        os.remove(del4)
+                    except:
+                        pass
+                    # del midindex
+                    tar5 = alllist[i].split('✡✡')[1] + '.csv'
+                    del5 = os.path.join(self.fullMidindex, tar5)
+                    try:
+                        os.remove(del5)
+                    except:
+                        pass
+                    # del midembed
+                    tar6 = alllist[i].split('✡✡')[1] + '.csv'
+                    del6 = os.path.join(self.fullMidembed, tar6)
+                    try:
+                        os.remove(del6)
+                    except:
+                        pass
+                    # del in allsearch.txt
+                    searit = codecs.open(self.fullse, 'r', encoding='utf-8').read()
+                    searit_list = searit.split('\n')
+                    while '' in searit_list:
+                        searit_list.remove('')
+                    if searit_list != []:
+                        emptylist = []
+                        for m in range(len(searit_list)):
+                            if alllist[i] in searit_list[m]:
+                                emptylist.append(searit_list[m])
+                        putlist = list(set(searit_list) - set(emptylist))
+                        putstr = '\n'.join(putlist) + '\n'
+                        with open(self.fullse, 'w', encoding='utf-8') as f0:
+                            f0.write(putstr)
+                # redo allindex
+                list_dir = os.listdir(self.fullIndex)
+                while '.DS_Store' in list_dir:
+                    list_dir.remove('.DS_Store')
+                with open(self.fullall2, 'w', encoding='utf-8') as f0:
+                    f0.write('title,heading,content,tokens\n')
+                if list_dir != []:
+                    for i in range(len(list_dir)):
+                        tarnamecsv = os.path.join(self.fullIndex, list_dir[i])
+                        midembedtext = codecs.open(tarnamecsv, 'r', encoding='utf-8').read()
+                        midembedtext = midembedtext.replace('title,heading,content,tokens', '')
+                        midembedtext_list = midembedtext.split('\n')
+                        while '' in midembedtext_list:
+                            midembedtext_list.remove('')
+                        midembedtext = '\n'.join(midembedtext_list)
+                        with open(self.fullall2, 'a', encoding='utf-8') as f0:
+                            f0.write(midembedtext + '\n')
+                # redo allembed
+                list_dir = os.listdir(self.fullEmbed)
+                while '.DS_Store' in list_dir:
+                    list_dir.remove('.DS_Store')
+                parta = ''
+                for d in range(0, 1536):
+                    parta = parta + str(d) + ','
+                parta = parta.rstrip(',')
+                with open(self.fullall1, 'w', encoding='utf-8') as f0:
+                    f0.write('title,heading,' + parta + '\n')
+                if list_dir != []:
+                    for i in range(len(list_dir)):
+                        tarnamecsv = os.path.join(self.fullEmbed, list_dir[i])
+                        midembedtext = codecs.open(tarnamecsv, 'r', encoding='utf-8').read()
+                        midembedtext_list = midembedtext.split('\n')
+                        while '' in midembedtext_list:
+                            midembedtext_list.remove('')
+                        del midembedtext_list[0]
+                        midembedtext = '\n'.join(midembedtext_list)
+                        with open(self.fullall1, 'a', encoding='utf-8') as f0:
+                            f0.write(midembedtext + '\n')
+                # clear deleted.txt item
+                with open(self.fulldel, 'w', encoding='utf-8') as f0:
+                    f0.write('')
         # refresh display
         if self.folder_list.currentItem() != None:
             endname = self.folder_list.currentItem().text() + '.txt'
@@ -1488,60 +1490,64 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
             self.btn7.setVisible(False)
 
     def openlink(self):
-        tarit = self.item_list.currentItem().text()
-        allitems = codecs.open(self.fullse, 'r', encoding='utf-8').read()
-        allitems_list = allitems.split('\n')
-        while '' in allitems_list:
-            allitems_list.remove('')
-        if allitems_list != []:
-            find_item = []
-            for i in range(len(allitems_list)):
-                if tarit in allitems_list[i]:
-                    find_item.append(allitems_list[i])
-            find_url = str(find_item[0].split('✡✡')[0])
-            webbrowser.open(find_url)
+        if self.item_list.currentItem() != None:
+            tarit = self.item_list.currentItem().text()
+            allitems = codecs.open(self.fullse, 'r', encoding='utf-8').read()
+            allitems_list = allitems.split('\n')
+            while '' in allitems_list:
+                allitems_list.remove('')
+            if allitems_list != []:
+                find_item = []
+                for i in range(len(allitems_list)):
+                    if tarit in allitems_list[i]:
+                        find_item.append(allitems_list[i])
+                find_url = str(find_item[0].split('✡✡')[0])
+                webbrowser.open(find_url)
 
     def copylink(self):
-        tarit = self.item_list.currentItem().text()
-        allitems = codecs.open(self.fullse, 'r', encoding='utf-8').read()
-        allitems_list = allitems.split('\n')
-        while '' in allitems_list:
-            allitems_list.remove('')
-        if allitems_list != []:
-            find_item = []
-            for i in range(len(allitems_list)):
-                if tarit in allitems_list[i]:
-                    find_item.append(allitems_list[i])
-            find_url = str(find_item[0].split('✡✡')[0])
-            pyperclip.copy(find_url)
+        if self.item_list.currentItem() != None:
+            tarit = self.item_list.currentItem().text()
+            allitems = codecs.open(self.fullse, 'r', encoding='utf-8').read()
+            allitems_list = allitems.split('\n')
+            while '' in allitems_list:
+                allitems_list.remove('')
+            if allitems_list != []:
+                find_item = []
+                for i in range(len(allitems_list)):
+                    if tarit in allitems_list[i]:
+                        find_item.append(allitems_list[i])
+                find_url = str(find_item[0].split('✡✡')[0])
+                pyperclip.copy(find_url)
 
     def openarchive(self):
-        tarit = self.item_list.currentItem().text() + '.webarchive'
-        topath = os.path.join(self.fullrecord, tarit)
-        subprocess.run(["open", "-a", "Safari", topath])
+        if self.item_list.currentItem() != None:
+            tarit = self.item_list.currentItem().text() + '.webarchive'
+            topath = os.path.join(self.fullrecord, tarit)
+            subprocess.run(["open", "-a", "Safari", topath])
 
     def deleteitem(self):
-        todel = self.folder_list.currentItem().text()
-        tarit = self.item_list.currentItem().text()
-        if todel != 'Deleted' and todel != '' and tarit != '':
-            tarname7_6 = todel + '.txt'
-            delfolder = os.path.join(self.fulldir1, tarname7_6)
-            deltext = codecs.open(delfolder, 'r', encoding='utf-8').read()
-            deltext_list = deltext.split('\n')
-            while '' in deltext_list:
-                deltext_list.remove('')
-            if deltext_list != []:
-                newlist = []
-                for i in range(len(deltext_list)):
-                    if tarit in deltext_list[i]:
-                        newlist.append(deltext_list[i])
-                endlist = list(set(deltext_list) - set(newlist))
-                endtext = '\n'.join(endlist)
-                with open(delfolder, 'w', encoding='utf-8') as f0:
-                    f0.write(endtext + '\n')
-                todel = ''.join(newlist)
-                with open(self.fulldel, 'a', encoding='utf-8') as f0:
-                    f0.write(todel + '\n')
+        if self.folder_list.currentItem() != None and self.item_list.currentItem() != None:
+            todel = self.folder_list.currentItem().text()
+            tarit = self.item_list.currentItem().text()
+            if todel != 'Deleted' and todel != '' and tarit != '':
+                tarname7_6 = todel + '.txt'
+                delfolder = os.path.join(self.fulldir1, tarname7_6)
+                deltext = codecs.open(delfolder, 'r', encoding='utf-8').read()
+                deltext_list = deltext.split('\n')
+                while '' in deltext_list:
+                    deltext_list.remove('')
+                if deltext_list != []:
+                    newlist = []
+                    for i in range(len(deltext_list)):
+                        if tarit in deltext_list[i]:
+                            newlist.append(deltext_list[i])
+                    endlist = list(set(deltext_list) - set(newlist))
+                    endtext = '\n'.join(endlist)
+                    with open(delfolder, 'w', encoding='utf-8') as f0:
+                        f0.write(endtext + '\n')
+                    todel = ''.join(newlist)
+                    with open(self.fulldel, 'a', encoding='utf-8') as f0:
+                        f0.write(todel + '\n')
         # refresh display
         if self.folder_list.currentItem() != None:
             endname = self.folder_list.currentItem().text() + '.txt'
@@ -1561,30 +1567,31 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
         move.exec()
         textc = codecs.open('choose.txt', 'r', encoding='utf-8').read()
         if textc == '1':
-            todel = self.folder_list.currentItem().text()
-            tarit = self.item_list.currentItem().text()
-            if todel != '' and tarit != '':
-                tarname7_6 = todel + '.txt'
-                delfolder = os.path.join(self.fulldir1, tarname7_6)
-                deltext = codecs.open(delfolder, 'r', encoding='utf-8').read()
-                deltext_list = deltext.split('\n')
-                while '' in deltext_list:
-                    deltext_list.remove('')
-                if deltext_list != []:
-                    newlist = []
-                    for i in range(len(deltext_list)):
-                        if tarit in deltext_list[i]:
-                            newlist.append(deltext_list[i])
-                    endlist = list(set(deltext_list) - set(newlist))
-                    endtext = '\n'.join(endlist)
-                    with open(delfolder, 'w', encoding='utf-8') as f0:
-                        f0.write(endtext + '\n')
-                    tofolder = codecs.open('tarfolder.txt', 'r', encoding='utf-8').read()
-                    tarnamenew = tofolder + '.txt'
-                    topath = os.path.join(self.fulldir1, tarnamenew)
-                    todel = ''.join(newlist)
-                    with open(topath, 'a', encoding='utf-8') as f0:
-                        f0.write(todel + '\n')
+            if self.folder_list.currentItem() != None and self.item_list.currentItem() != None:
+                todel = self.folder_list.currentItem().text()
+                tarit = self.item_list.currentItem().text()
+                if todel != '' and tarit != '':
+                    tarname7_6 = todel + '.txt'
+                    delfolder = os.path.join(self.fulldir1, tarname7_6)
+                    deltext = codecs.open(delfolder, 'r', encoding='utf-8').read()
+                    deltext_list = deltext.split('\n')
+                    while '' in deltext_list:
+                        deltext_list.remove('')
+                    if deltext_list != []:
+                        newlist = []
+                        for i in range(len(deltext_list)):
+                            if tarit in deltext_list[i]:
+                                newlist.append(deltext_list[i])
+                        endlist = list(set(deltext_list) - set(newlist))
+                        endtext = '\n'.join(endlist)
+                        with open(delfolder, 'w', encoding='utf-8') as f0:
+                            f0.write(endtext + '\n')
+                        tofolder = codecs.open('tarfolder.txt', 'r', encoding='utf-8').read()
+                        tarnamenew = tofolder + '.txt'
+                        topath = os.path.join(self.fulldir1, tarnamenew)
+                        todel = ''.join(newlist)
+                        with open(topath, 'a', encoding='utf-8') as f0:
+                            f0.write(todel + '\n')
         # refresh display
         if self.folder_list.currentItem() != None:
             endname = self.folder_list.currentItem().text() + '.txt'

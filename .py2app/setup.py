@@ -18,7 +18,7 @@ OPTIONS = {'iconfile': 'banana_desk.icns',
             'bs4', 'numpy', 'pandas', 'html2text', 'jieba', 'glob', 'signal', 'subprocess', 'urllib3',
             'logging', 'httpx', 'asyncio'],
            'plist': {
-            'CFBundleShortVersionString': '0.0.7',
+            'CFBundleShortVersionString': '0.0.8',
             'LSUIElement': True,
             },
            }
@@ -29,5 +29,5 @@ setup(
     options={'py2app': OPTIONS},
     setup_requires=['py2app'],
     author='Ryan-the-hito',
-    version='0.0.7'
+    version='0.0.8'
 )
