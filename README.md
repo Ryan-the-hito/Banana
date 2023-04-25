@@ -8,7 +8,7 @@
 
 ![fDHS3Wj](https://i.imgur.com/fDHS3Wj.png)
 
-![ESowIG1](https://i.imgur.com/ESowIG1.png)
+![Z1yy3rO](https://i.imgur.com/Z1yy3rO.png)
 
 ![4yo6eRM](https://i.imgur.com/4yo6eRM.png)
 
