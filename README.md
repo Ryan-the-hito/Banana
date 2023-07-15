@@ -1,4 +1,4 @@
-# Banana
+# 🍌Banana: Localized Bookmark Manager/Archiver + ChatGPT
 
 ![q8b6GeE](https://i.imgur.com/q8b6GeE.png)
 
