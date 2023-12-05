@@ -161,7 +161,7 @@ class window_about(QWidget):  # 增加说明页面(About)
 		widg2.setLayout(blay2)
 
 		widg3 = QWidget()
-		lbl1 = QLabel('Version 0.1.4', self)
+		lbl1 = QLabel('Version 0.1.5', self)
 		blay3 = QHBoxLayout()
 		blay3.setContentsMargins(0, 0, 0, 0)
 		blay3.addStretch()
@@ -595,7 +595,7 @@ class window_update(QWidget):  # 增加更新页面（Check for Updates）
 
 	def initUI(self):  # 说明页面内信息
 
-		self.lbl = QLabel('Current Version: v0.1.4', self)
+		self.lbl = QLabel('Current Version: v0.1.5', self)
 		self.lbl.move(30, 45)
 
 		lbl0 = QLabel('Download Update:', self)
@@ -4117,6 +4117,7 @@ class window5(QWidget):  # Customization settings
 		SCREEN_WEIGHT = int(self.screen().availableGeometry().width())
 		SCREEN_HEIGHT = int(self.screen().availableGeometry().height())
 		self.setFixedSize(SCREEN_WEIGHT, SCREEN_HEIGHT)
+		self.cleanup_handler = QObjectCleanupHandler()
 
 		home_dir = str(Path.home())
 		tarname1 = "Library"
@@ -4169,16 +4170,16 @@ class window5(QWidget):  # Customization settings
 			self.scroll.setWidget(self.topFiller)
 			self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-			w = QWidget()
+			self.w = QWidget()
 			self.vbox = QVBoxLayout()
 			self.vbox.setContentsMargins(10, 0, 10, 0)
 			self.vbox.addWidget(self.scroll)
-			w.setLayout(self.vbox)
-			w.setObjectName("Main")
+			self.w.setLayout(self.vbox)
+			self.w.setObjectName("Main")
 
 			self.hbox = QHBoxLayout()
 			self.hbox.setContentsMargins(0, 0, 0, 0)
-			self.hbox.addWidget(w)
+			self.hbox.addWidget(self.w)
 			self.setLayout(self.hbox)
 		except:
 			CMD = '''
@@ -4213,16 +4214,11 @@ class window5(QWidget):  # Customization settings
 
 	def activate(self):
 		if action9.isChecked():
-			self.setStyleSheet(style_sheet_ori)
-			self.show()
-			self.setFocus()
-			self.raise_()
-			btna6.setChecked(True)
-
 			try:
-				QObjectCleanupHandler().add(self.scroll)
-				QObjectCleanupHandler().add(self.vbox)
-				QObjectCleanupHandler().add(self.hbox)
+				self.cleanup_handler.add(self.scroll)
+				self.cleanup_handler.add(self.vbox)
+				self.cleanup_handler.add(self.w)
+				self.cleanup_handler.add(self.hbox)
 
 				SCREEN_WEIGHT = int(self.screen().availableGeometry().width())
 				SCREEN_HEIGHT = int(self.screen().availableGeometry().height())
@@ -4278,17 +4274,23 @@ class window5(QWidget):  # Customization settings
 				self.scroll.setWidget(self.topFiller)
 				self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-				w = QWidget()
+				self.w = QWidget()
 				self.vbox = QVBoxLayout()
 				self.vbox.setContentsMargins(10, 0, 10, 0)
 				self.vbox.addWidget(self.scroll)
-				w.setLayout(self.vbox)
-				w.setObjectName("Main")
+				self.w.setLayout(self.vbox)
+				self.w.setObjectName("Main")
 
 				self.hbox = QHBoxLayout()
 				self.hbox.setContentsMargins(0, 0, 0, 0)
-				self.hbox.addWidget(w)
+				self.hbox.addWidget(self.w)
 				self.setLayout(self.hbox)
+
+				self.setStyleSheet(style_sheet_ori)
+				self.show()
+				self.setFocus()
+				self.raise_()
+				btna6.setChecked(True)
 			except:
 				CMD = '''
 					on run argv
@@ -4299,20 +4301,16 @@ class window5(QWidget):  # Customization settings
 							f'You have to grant Banana "Full Disk Access" to enable this function!')
 		if not action9.isChecked():
 			self.close()
+			self.cleanup_handler.clear()
 			btna6.setChecked(False)
 
 	def activate2(self):
 		if btna6.isChecked():
-			self.setStyleSheet(style_sheet_ori)
-			self.show()
-			self.setFocus()
-			self.raise_()
-			action9.setChecked(True)
-
 			try:
-				QObjectCleanupHandler().add(self.scroll)
-				QObjectCleanupHandler().add(self.vbox)
-				QObjectCleanupHandler().add(self.hbox)
+				self.cleanup_handler.add(self.scroll)
+				self.cleanup_handler.add(self.vbox)
+				self.cleanup_handler.add(self.w)
+				self.cleanup_handler.add(self.hbox)
 
 				SCREEN_WEIGHT = int(self.screen().availableGeometry().width())
 				SCREEN_HEIGHT = int(self.screen().availableGeometry().height())
@@ -4368,17 +4366,23 @@ class window5(QWidget):  # Customization settings
 				self.scroll.setWidget(self.topFiller)
 				self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
-				w = QWidget()
+				self.w = QWidget()
 				self.vbox = QVBoxLayout()
 				self.vbox.setContentsMargins(10, 0, 10, 0)
 				self.vbox.addWidget(self.scroll)
-				w.setLayout(self.vbox)
-				w.setObjectName("Main")
+				self.w.setLayout(self.vbox)
+				self.w.setObjectName("Main")
 
 				self.hbox = QHBoxLayout()
 				self.hbox.setContentsMargins(0, 0, 0, 0)
-				self.hbox.addWidget(w)
+				self.hbox.addWidget(self.w)
 				self.setLayout(self.hbox)
+
+				self.setStyleSheet(style_sheet_ori)
+				self.show()
+				self.setFocus()
+				self.raise_()
+				action9.setChecked(True)
 			except:
 				CMD = '''
 					on run argv
@@ -4389,6 +4393,7 @@ class window5(QWidget):  # Customization settings
 							f'You have to grant Banana "Full Disk Access" to enable this function!')
 		if not btna6.isChecked():
 			self.close()
+			self.cleanup_handler.clear()
 			action9.setChecked(False)
 
 
