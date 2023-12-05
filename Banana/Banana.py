@@ -4219,6 +4219,7 @@ class window5(QWidget):  # Customization settings
 				self.cleanup_handler.add(self.vbox)
 				self.cleanup_handler.add(self.w)
 				self.cleanup_handler.add(self.hbox)
+				self.cleanup_handler.clear()
 
 				SCREEN_WEIGHT = int(self.screen().availableGeometry().width())
 				SCREEN_HEIGHT = int(self.screen().availableGeometry().height())
@@ -4301,7 +4302,6 @@ class window5(QWidget):  # Customization settings
 							f'You have to grant Banana "Full Disk Access" to enable this function!')
 		if not action9.isChecked():
 			self.close()
-			self.cleanup_handler.clear()
 			btna6.setChecked(False)
 
 	def activate2(self):
@@ -4311,6 +4311,7 @@ class window5(QWidget):  # Customization settings
 				self.cleanup_handler.add(self.vbox)
 				self.cleanup_handler.add(self.w)
 				self.cleanup_handler.add(self.hbox)
+				self.cleanup_handler.clear()
 
 				SCREEN_WEIGHT = int(self.screen().availableGeometry().width())
 				SCREEN_HEIGHT = int(self.screen().availableGeometry().height())
@@ -4393,7 +4394,6 @@ class window5(QWidget):  # Customization settings
 							f'You have to grant Banana "Full Disk Access" to enable this function!')
 		if not btna6.isChecked():
 			self.close()
-			self.cleanup_handler.clear()
 			action9.setChecked(False)
 
 
