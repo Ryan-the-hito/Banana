@@ -4,6 +4,10 @@
 
 ## 功能介绍
 
+新增功能：类 Arc 平展式书签视图
+
+![828hN60](https://i.imgur.com/828hN60.png)
+
 ![JW2zkCp](https://i.imgur.com/JW2zkCp.png)
 
 ![fDHS3Wj](https://i.imgur.com/fDHS3Wj.png)
