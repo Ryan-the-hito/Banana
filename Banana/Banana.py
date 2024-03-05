@@ -161,7 +161,7 @@ class window_about(QWidget):  # 增加说明页面(About)
 		widg2.setLayout(blay2)
 
 		widg3 = QWidget()
-		lbl1 = QLabel('Version 0.1.5', self)
+		lbl1 = QLabel('Version 1.0.0', self)
 		blay3 = QHBoxLayout()
 		blay3.setContentsMargins(0, 0, 0, 0)
 		blay3.addStretch()
@@ -595,7 +595,7 @@ class window_update(QWidget):  # 增加更新页面（Check for Updates）
 
 	def initUI(self):  # 说明页面内信息
 
-		self.lbl = QLabel('Current Version: v0.1.5', self)
+		self.lbl = QLabel('Current Version: v1.0.0', self)
 		self.lbl.move(30, 45)
 
 		lbl0 = QLabel('Download Update:', self)
@@ -1036,6 +1036,9 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 		if not os.path.exists(self.fullcmd):
 			shutil.copy('webarchiver.command', self.fulldir1)
 
+		tarname11 = "Desktop"
+		self.fulldir11 = os.path.join(home_dir, tarname11)
+
 		self.setUpMainWindow()
 		#self.listenshorcut()
 
@@ -1318,6 +1321,13 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 					file_name = self.endText + '.webarchive'
 					record_path = os.path.join(self.fullrecord, file_name)
 					if not os.path.exists(record_path):
+						ResultEnd = self.fulldir11
+						ResultEnd = ResultEnd.encode('utf-8').decode('utf-8', 'ignore')
+						uid = os.getuid()
+						env = os.environ.copy()
+						env['__CF_USER_TEXT_ENCODING'] = f'{uid}:0x8000100:0x8000100'
+						p = subprocess.Popen(['pbcopy', 'w'], stdin=subprocess.PIPE, env=env)
+						p.communicate(input=ResultEnd.encode('utf-8'))
 						cmd = """
 							tell application "Safari"
 								activate
@@ -1325,14 +1335,24 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 								tell application "System Events"
 									keystroke "s" using {command down, shift down}
 									delay 2
-									keystroke "d" using {command down} -- save to Desktop
-									delay 1
-									tell application process "Safari"
-										tell pop up button 1 of window 1
-											click
-											click menu item "Web Archive" of menu 1
-										end tell
+									key code 5 using {command down, shift down}
+    								delay 0.3
+    								key code 9 using {command down}
+    								delay 0.3
+    								key code 36
+    								delay 0.3
+									tell process "Safari"
+										try
+											click pop up button 2 of sheet 1 of window 1 -- 点击格式选择下拉菜单
+											delay 0.5
+											key code 125
+											delay 0.3
+											key code 36
+										on error errMsg -- 如果出错，比如找不到菜单项，可以在这里处理
+											display dialog "Error selecting Web Archive format: " & errMsg
+										end try
 									end tell
+									delay 0.3
 									keystroke return
 									delay 1
 									keystroke "w" using {command down}
@@ -1399,14 +1419,31 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 							saj = paj.split('/')
 							if len(plain_list[i]) < 100:
 								del_list.append(plain_list[i])
-							if len(saj) > 500:
-								ter = saj[0:499]
-								tarstr = ' '.join(ter)
-								plain_list[i] = tarstr
+							if len(saj) > 200:
+								times = int(len(saj) / 200) + 1
+								temp = ''
+								tm = 1
+								if tm == 1:
+									ter = saj[0:199]
+									tarstr = ' '.join(ter) + '✡'
+									temp = temp + tarstr
+									tm += 1
+								while 1 < tm <= times - 1:
+									ter = saj[(tm - 1) * 200 - 1:tm * 200 - 1]
+									tarstr = ' '.join(ter) + '✡'
+									temp = temp + tarstr
+									tm += 1
+								if tm == times:
+									ter = saj[(tm - 1) * 200 - 1:]
+									tarstr = ' '.join(ter) + '✡'
+									temp = temp + tarstr
+								plain_list[i] = temp
 						end_list = list(set(plain_list) - set(del_list))
 						for n in range(len(end_list)):
 							end_list[n] = self.default_clean(self.cleanlinebreak(end_list[n])) + '<SOURCE: ' + self.endText + '>'
+						end_list = list(filter(None, end_list))
 						end_text = '✡'.join(end_list)
+						end_text = end_text.replace('✡✡', '✡')
 						for i in range(10):
 							end_text = end_text.replace('   ', ' ')
 							end_text = end_text.replace('  ', ' ')
@@ -1578,21 +1615,38 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 					file_name = self.endText + '.webarchive'
 					record_path = os.path.join(self.fullrecord, file_name)
 					if not os.path.exists(record_path):
+						ResultEnd = self.fulldir11
+						ResultEnd = ResultEnd.encode('utf-8').decode('utf-8', 'ignore')
+						uid = os.getuid()
+						env = os.environ.copy()
+						env['__CF_USER_TEXT_ENCODING'] = f'{uid}:0x8000100:0x8000100'
+						p = subprocess.Popen(['pbcopy', 'w'], stdin=subprocess.PIPE, env=env)
+						p.communicate(input=ResultEnd.encode('utf-8'))
 						cmd = """
 							tell application "Safari"
 								activate
 								set currentTab to current tab of window 1
 								tell application "System Events"
 									keystroke "s" using {command down, shift down}
-									delay 1
-									keystroke "d" using {command down} -- save to Desktop
-									delay 1
-									tell application process "Safari"
-										tell pop up button 1 of window 1
-											click
-											click menu item "Web Archive" of menu 1
-										end tell
+									delay 2
+									key code 5 using {command down, shift down}
+    								delay 0.3
+    								key code 9 using {command down}
+    								delay 0.3
+    								key code 36
+    								delay 0.3
+									tell process "Safari"
+										try
+											click pop up button 2 of sheet 1 of window 1 -- 点击格式选择下拉菜单
+											delay 0.5
+											key code 125
+											delay 0.3
+											key code 36
+										on error errMsg -- 如果出错，比如找不到菜单项，可以在这里处理
+											display dialog "Error selecting Web Archive format: " & errMsg
+										end try
 									end tell
+									delay 0.3
 									keystroke return
 									delay 1
 									keystroke "w" using {command down}
@@ -1659,14 +1713,32 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 							saj = paj.split('/')
 							if len(plain_list[i]) < 100:
 								del_list.append(plain_list[i])
-							if len(saj) > 500:
-								ter = saj[0:499]
-								tarstr = ' '.join(ter)
-								plain_list[i] = tarstr
+							if len(saj) > 200:
+								times = int(len(saj) / 200) + 1
+								temp = ''
+								tm = 1
+								if tm == 1:
+									ter = saj[0:199]
+									tarstr = ' '.join(ter) + '✡'
+									temp = temp + tarstr
+									tm += 1
+								while 1 < tm <= times - 1:
+									ter = saj[(tm - 1) * 200 - 1:tm * 200 - 1]
+									tarstr = ' '.join(ter) + '✡'
+									temp = temp + tarstr
+									tm += 1
+								if tm == times:
+									ter = saj[(tm - 1) * 200 - 1:]
+									tarstr = ' '.join(ter) + '✡'
+									temp = temp + tarstr
+								plain_list[i] = temp
 						end_list = list(set(plain_list) - set(del_list))
 						for n in range(len(end_list)):
-							end_list[n] = self.default_clean(self.cleanlinebreak(end_list[n])) + '<SOURCE: ' + self.endText + '>'
+							end_list[n] = self.default_clean(
+								self.cleanlinebreak(end_list[n])) + '<SOURCE: ' + self.endText + '>'
+						end_list = list(filter(None, end_list))
 						end_text = '✡'.join(end_list)
+						end_text = end_text.replace('✡✡', '✡')
 						for i in range(10):
 							end_text = end_text.replace('   ', ' ')
 							end_text = end_text.replace('  ', ' ')
@@ -1792,6 +1864,8 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 
 	def embeditem(self):
 		AccountGPT = codecs.open(BasePath + 'api.txt', 'r', encoding='utf-8').read()
+		api2 = codecs.open(BasePath + 'api2.txt', 'r', encoding='utf-8').read()
+		bear = codecs.open(BasePath + 'bear.txt', 'r', encoding='utf-8').read()
 		if AccountGPT != '':
 			SUCC = 0
 			icon = QIcon(BasePath + "embeding.icns")
@@ -1832,12 +1906,30 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 							df = df.set_index(["title", "heading"])
 							df.sample(1)
 							def get_embedding(text: str, model: str = EMBEDDING_MODEL) -> list[float]:
-								result = openai.Embedding.create(
-									model=model,
-									input=text
-								)
-								time.sleep(0.5)
-								return result["data"][0]["embedding"]
+								Which = codecs.open(BasePath + 'which.txt', 'r', encoding='utf-8').read()
+								if AccountGPT != '' and Which == '0':
+									result = openai.Embedding.create(
+										model=model,
+										input=text
+									)
+									time.sleep(0.5)
+									return result["data"][0]["embedding"]
+								if AccountGPT == '' or (bear != '' and api2 != '' and Which == '1'):
+									ENDPOINT = bear + '/v1/embeddings'
+									HEADERS = {"Authorization": f"Bearer {api2}"}
+									data = {
+										"model": model,
+										"input": text,
+									}
+									response = requests.post(ENDPOINT, json=data, headers=HEADERS, timeout=60.0)
+									if response.status_code == 200:
+										response_data = response.json()
+										chat_output = response_data["data"][0]["embedding"]
+										time.sleep(0.5)
+										return chat_output
+									else:
+										raise Exception(
+											f"API call failed with status code {response.status_code}: {response.text}")
 							df["embedding"] = df.content.apply(lambda x: get_embedding(x, EMBEDDING_MODEL))
 							df.to_csv(BasePath + 'with_embeddings.csv')
 							with open(BasePath + 'with_embeddings.csv', 'r', encoding='utf-8') as input_file:
@@ -2019,12 +2111,14 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 			f0.write(tarname)
 
 	def searchchat(self):
-		COMPLETIONS_MODEL = "gpt-3.5-turbo"
+		COMPLETIONS_MODEL = codecs.open(BasePath + 'modelnow.txt', 'r', encoding='utf-8').read()
 		EMBEDDING_MODEL = "text-embedding-ada-002"
 		AccountGPT = codecs.open(BasePath + 'api.txt', 'r', encoding='utf-8').read()
 		openai.api_key = AccountGPT
 		TEMP = int(codecs.open(BasePath + 'temperature.txt', 'r', encoding='utf-8').read())
 		MAXT = int(codecs.open(BasePath + 'maxtokens.txt', 'r', encoding='utf-8').read())
+		api2 = codecs.open(BasePath + 'api2.txt', 'r', encoding='utf-8').read()
+		bear = codecs.open(BasePath + 'bear.txt', 'r', encoding='utf-8').read()
 
 		if self.text1.toPlainText() != '':
 			df = pd.read_csv(self.fullall2)
@@ -2033,16 +2127,32 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 				chatpath1 = os.path.join(self.fullIndex, chatwith)
 				df = pd.read_csv(chatpath1)
 			df = df.set_index(["title", "heading"])
-			#print(f"{len(df)} rows in the data.")
-			df.sample(5)
+			df.sample(1)
 
 			def get_embedding(text: str, model: str = EMBEDDING_MODEL) -> list[float]:
-				result = openai.Embedding.create(
-					model=model,
-					input=text
-				)
-				time.sleep(0.5)
-				return result["data"][0]["embedding"]
+				Which = codecs.open(BasePath + 'which.txt', 'r', encoding='utf-8').read()
+				if AccountGPT != '' and Which == '0':
+					result = openai.Embedding.create(
+						model=model,
+						input=text
+					)
+					time.sleep(0.5)
+					return result["data"][0]["embedding"]
+				if AccountGPT == '' or (bear != '' and api2 != '' and Which == '1'):
+					ENDPOINT = bear + '/v1/embeddings'
+					HEADERS = {"Authorization": f"Bearer {api2}"}
+					data = {
+						"model": model,
+						"input": text,
+					}
+					response = requests.post(ENDPOINT, json=data, headers=HEADERS, timeout=60.0)
+					if response.status_code == 200:
+						response_data = response.json()
+						chat_output = response_data["data"][0]["embedding"]
+						time.sleep(0.5)
+						return chat_output
+					else:
+						raise Exception(f"API call failed with status code {response.status_code}: {response.text}")
 
 			def load_embeddings(fname: str) -> dict[tuple[str, str], list[float]]:
 				df = pd.read_csv(fname, header=0)
@@ -2070,7 +2180,7 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 
 				return document_similarities
 
-			MAX_SECTION_LEN = 1024
+			MAX_SECTION_LEN = MAXT
 			SEPARATOR = "\n* "
 
 			tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
@@ -2094,7 +2204,7 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 					chosen_sections.append(SEPARATOR + document_section.content.replace("\n", " "))
 					chosen_sections_indexes.append(str(section_index))
 
-				header = """Answer the question as truthfully as possible using the provided context, and if the answer is not contained within the text below, say "I don't know."\n\nContext:\n"""
+				header = """Answer the question in the language of the question. Answer as truthfully as possible using the provided context, and if the answer is not contained within the text below, say "I don't know."\n\nContext:\n"""
 
 				return header + "".join(str(chosen_sections)) + "\n\n Q: " + question + "\n A:"
 
@@ -2189,7 +2299,8 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 						self.real1.setTextCursor(cursor)  # 滚动到游标位置
 						self.text1.setPlainText(self.LastQ)
 				if Which == '1':
-					ENDPOINT = 'https://api.openai.com/v1/chat/completions'
+					ENDPOINT = bear + '/v1/chat/completions'
+					AccountGPT = api2
 					HEADERS = {"Authorization": f"Bearer {AccountGPT}"}
 					async def answer_query(
 							query: str,
@@ -2232,8 +2343,9 @@ class window3(QWidget):  # 主程序的代码块（Find a dirty word!）
 							encoded_input_text = input_text.encode("utf-8")
 
 						# Set up the API call data
+						modelnow = codecs.open(BasePath + 'modelnow.txt', 'r', encoding='utf-8').read()
 						data = {
-							"model": "gpt-3.5-turbo",
+							"model": modelnow,
 							"messages": [{"role": "user", "content": input_text}],
 							"max_tokens": MAXT,
 							"temperature": TEMP,
@@ -4013,7 +4125,7 @@ class window4(QWidget):  # Customization settings
 
 	def initUI(self):  # 设置窗口内布局
 		self.setUpMainWindow()
-		self.resize(350, 150)
+		self.resize(350, 230)
 		self.center()
 		self.setWindowTitle('Customization settings')
 		self.setFocus()
@@ -4032,9 +4144,18 @@ class window4(QWidget):  # Customization settings
 
 		self.leapi = QLineEdit(self)
 		self.leapi.setPlaceholderText('API here...')
-		Apis = codecs.open(BasePath + 'api.txt', 'r', encoding='utf-8').read()
-		if Apis != '':
+		if self.widgeten.currentIndex() == 0:
+			Apis = codecs.open(BasePath + 'api.txt', 'r', encoding='utf-8').read()
 			self.leapi.setText(Apis)
+		if self.widgeten.currentIndex() == 1:
+			Apis = codecs.open(BasePath + 'api2.txt', 'r', encoding='utf-8').read()
+			self.leapi.setText(Apis)
+
+		self.lebear = QLineEdit(self)
+		self.lebear.setPlaceholderText('Third-party Endpoint here...only for ChatGPT (httpx)')
+		bear = codecs.open(BasePath + 'bear.txt', 'r', encoding='utf-8').read()
+		if bear != '':
+			self.lebear.setText(bear)
 
 		self.lemaxtokens = QLineEdit(self)
 		self.lemaxtokens.setPlaceholderText('Maxtokens here...(0~1024)')
@@ -4047,6 +4168,33 @@ class window4(QWidget):  # Customization settings
 		temp = codecs.open(BasePath + 'temperature.txt', 'r', encoding='utf-8').read()
 		if temp != '':
 			self.letemp.setText(temp)
+
+		home_dir = str(Path.home())
+		tarname1 = "BroccoliAppPath"
+		fulldir1 = os.path.join(home_dir, tarname1)
+		if not os.path.exists(fulldir1):
+			os.mkdir(fulldir1)
+		self.bot_te2 = QTextEdit(self)
+		tarname4 = "model.txt"
+		fulldir4 = os.path.join(fulldir1, tarname4)
+		models = codecs.open(fulldir4, 'r', encoding='utf-8').read()
+		self.bot_te2.setText(models)
+		self.bot_te2.setPlaceholderText(
+			'These are models you would like to use. One model a line.')
+
+		self.bot_widget2 = QComboBox(self)
+		self.bot_widget2.setEditable(False)
+		if models == '':
+			modellist = ['gpt-3.5-turbo', 'gpt-3.5-turbo-16k', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613']
+			self.bot_widget2.addItems(modellist)
+		if models != '':
+			modellist = models.split('\n')
+			while '' in modellist:
+				modellist.remove('')
+			self.bot_widget2.addItems(modellist)
+		wp = codecs.open(BasePath + 'wp.txt', 'r', encoding='utf-8').read()
+		self.bot_widget2.currentIndexChanged.connect(self.bot_IndexChange2)
+		self.bot_widget2.setCurrentIndex(int(wp))
 
 		btn_1 = QPushButton('Save', self)
 		btn_1.clicked.connect(self.SaveAPI)
@@ -4063,9 +4211,12 @@ class window4(QWidget):  # Customization settings
 		vbox1 = QVBoxLayout()
 		vbox1.setContentsMargins(20, 20, 20, 20)
 		vbox1.addWidget(self.widgeten)
+		vbox1.addWidget(self.bot_widget2)
 		vbox1.addWidget(self.leapi)
+		vbox1.addWidget(self.lebear)
 		vbox1.addWidget(self.lemaxtokens)
 		vbox1.addWidget(self.letemp)
+		vbox1.addWidget(self.bot_te2)
 		vbox1.addWidget(qw2)
 		self.setLayout(vbox1)
 
@@ -4073,13 +4224,35 @@ class window4(QWidget):  # Customization settings
 		if i == 0:
 			with open(BasePath + 'which.txt', 'w', encoding='utf-8') as f0:
 				f0.write('0')
+			Apis = codecs.open(BasePath + 'api.txt', 'r', encoding='utf-8').read()
+			self.leapi.setText(Apis)
+			self.lebear.setHidden(True)
+			bear = codecs.open(BasePath + 'bear.txt', 'r', encoding='utf-8').read()
+			self.lebear.setText(bear)
 		if i == 1:
 			with open(BasePath + 'which.txt', 'w', encoding='utf-8') as f0:
 				f0.write('1')
+			Apis = codecs.open(BasePath + 'api2.txt', 'r', encoding='utf-8').read()
+			self.leapi.setText(Apis)
+			self.lebear.setHidden(False)
+			bear = codecs.open(BasePath + 'bear.txt', 'r', encoding='utf-8').read()
+			self.lebear.setText(bear)
+
+	def bot_IndexChange2(self, h):
+		with open(BasePath + 'wp.txt', 'w', encoding='utf-8') as f0:
+			f0.write(str(h))
+		with open(BasePath + 'modelnow.txt', 'w', encoding='utf-8') as f0:
+			f0.write(self.bot_widget2.itemText(h))
 
 	def SaveAPI(self):
-		with open(BasePath + 'api.txt', 'w', encoding='utf-8') as f1:
-			f1.write(self.leapi.text())
+		if self.widgeten.currentIndex() == 0:
+			with open(BasePath + 'api.txt', 'w', encoding='utf-8') as f1:
+				f1.write(self.leapi.text())
+		if self.widgeten.currentIndex() == 1:
+			with open(BasePath + 'api2.txt', 'w', encoding='utf-8') as f1:
+				f1.write(self.leapi.text())
+		with open(BasePath + 'bear.txt', 'w', encoding='utf-8') as f1:
+			f1.write(self.lebear.text())
 		with open(BasePath + 'maxtokens.txt', 'w', encoding='utf-8') as f1:
 			f1.write(self.lemaxtokens.text())
 		with open(BasePath + 'temperature.txt', 'w', encoding='utf-8') as f1:
